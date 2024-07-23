@@ -36,7 +36,6 @@ export const RemixUIGridCell = (props: RemixUIGridCellProps) => {
   const [pinned, setPinned] = useState<boolean>(props.pinned)
 
   useEffect(() => {
-    console.log("oopsik")
     let enabled = false
     // check for tags
     if (props.tagList && props.tagList.length != 0) {
