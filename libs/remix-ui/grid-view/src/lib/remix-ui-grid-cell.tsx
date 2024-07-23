@@ -41,7 +41,7 @@ export const RemixUIGridCell = (props: RemixUIGridCellProps) => {
     // check for tags
     if (props.tagList && props.tagList.length != 0) {
       enabled = props.tagList.some((key) => filterCon.keyValueMap[key]?.enabled)
-    } else if (filterCon?.keyValueMap['no tag']?.enabled) {
+    } else if (filterCon?.keyValueMap['no tag']?.enabled || !Object.keys(filterCon?.keyValueMap).length) {
       enabled = true
     }
 
