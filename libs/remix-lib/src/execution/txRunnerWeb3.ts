@@ -3,6 +3,15 @@ import { EventManager } from '../eventManager'
 import type { Transaction as InternalTransaction } from './txRunner'
 import Web3 from 'web3'
 import { toBigInt, toHex } from 'web3-utils'
+import { createPublicClient, createWalletClient, http, custom } from "viem"
+import { sepolia } from 'viem/chains'
+import { V06 } from "userop"
+
+declare global {
+  interface Window {
+    ethereum?: any
+  }
+}
 
 export class TxRunnerWeb3 {
   event
@@ -92,17 +101,19 @@ export class TxRunnerWeb3 {
   }
 
   execute (args: InternalTransaction, confirmationCb, gasEstimationForceSend, promptCb, callback) {
+
     let data = args.data
     if (data.slice(0, 2) !== '0x') {
       data = '0x' + data
     }
 
-    return this.runInNode(args.from, args.to, data, args.value, args.gasLimit, args.useCall, args.timestamp, confirmationCb, gasEstimationForceSend, promptCb, callback)
+    return this.runInNode(args.from, args.fromSmartAccount, args.to, data, args.value, args.gasLimit, args.useCall, args.timestamp, confirmationCb, gasEstimationForceSend, promptCb, callback)
   }
 
-  runInNode (from, to, data, value, gasLimit, useCall, timestamp, confirmCb, gasEstimationForceSend, promptCb, callback) {
+  runInNode (from, fromSmartAccount, to, data, value, gasLimit, useCall, timestamp, confirmCb, gasEstimationForceSend, promptCb, callback) {
     const tx = { from: from, to: to, data: data, value: value }
     if (!from) return callback('the value of "from" is not defined. Please make sure an account is selected.')
+    if (fromSmartAccount) this.sendUserOp(to, value, data).then(console.log)
     if (useCall) {
       if (this._api && this._api.isVM()) {
         (this.getWeb3() as any).remix.registerCallId(timestamp)
@@ -181,6 +192,45 @@ export class TxRunnerWeb3 {
           }, callback)
         })
     })
+  }
+
+  async sendUserOp(toAddress, value, data) {
+    console.log('inside --sendUserOp-->', toAddress)
+    const bundlerEndpoint = "https://public.stackup.sh/api/v1/node/ethereum-sepolia"
+
+    const ethClient: any = createPublicClient({
+      chain: sepolia,
+      transport: http(bundlerEndpoint)
+    })
+
+    const [account] = await window.ethereum!.request({ method: 'eth_requestAccounts' })
+ 
+    const walletClient = createWalletClient({ 
+      account, 
+      chain: sepolia,
+      transport: http()
+    })
+
+    // const walletClient: any = createWalletClient({
+    //   chain: sepolia,
+    //   transport: custom(window.ethereum)
+    // })
+
+    // const addresses = await walletClient.getAddresses()
+    // console.log('addresses--txRUnnerWeb3-->', addresses)
+
+    const smartAccount = new V06.Account.Instance({
+      ...V06.Account.Common.SimpleAccount.base(ethClient, walletClient)
+    })
+    console.log('getSender---->', await smartAccount.getSender())
+
+    const buildop = await smartAccount.encodeCallData("execute", [toAddress, value, data]).buildUserOperation()
+    console.log('buildop---->', buildop)
+
+
+        // 4. Wait for UserOperation to be included onchain.
+      // const receipt = await send.wait()
+      // console.log('receipt---->', receipt)
   }
 }
 
